@@ -1,7 +1,7 @@
 # Created by Steven Notridge
 # Some parts are useful for now but whatever.
 # Might continue working on this, could be quite fun.
-# V0.2b
+# V0.3
 
 # Main frame.
 $Turn = 1
@@ -21,28 +21,26 @@ function Enemy-Attack {
             $Amount = ([int]$Player.Health) - $($Enemy.Attack)
             ([int]$Player.Health) = $Amount
             Write-Host "-$($Enemy.Attack) HP" -ForegroundColor Red
+            Write-Host "----------------------------------------" -ForegroundColor Yellow
         }
         If($EnemyChoice -match $Enemy.Skill1){
             Write-Host "The" $Enemy.Name "uses it's $($Enemy.Skill1) ability!" -ForegroundColor Yellow
             $Amount = ([int]$Player.Health) - $($Enemy.Skill1DMG)
             ([int]$Player.Health) = $Amount
             Write-Host "-$($Enemy.Skill1DMG) HP" -ForegroundColor Red
+            Write-Host "----------------------------------------" -ForegroundColor Yellow
         }
     }
 
 }
 
-function Start-Battle {
-
+function Start-UI {
 
     # Turn Stats
     Write-Host "Your HP =" $($Player.Health)
     Write-Host "$($Enemy.Name)"HP" = $($Enemy.Health)"
     Write-Host "Turn:" $Turn
     Write-Host "Round:" $Round
-
-    # # Reroll
-    # Reroll-Hand
 
     # Show Hand
     Write-Host "----------------------------------------" -ForegroundColor Yellow
@@ -62,71 +60,29 @@ function Player-Attack {
                 $Amount = ([int]$Enemy.Health) - $Smash
                 Write-Host "You Smash the enemy, dealing $($Smash) damage!" -ForegroundColor Yellow
                 $Enemy['Health'] = $Amount
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
             }
             Stab
             {
                 Write-Host "You stab the enemy, dealing $($Player.Attack) damage!" -ForegroundColor Yellow
                 $Amount = ([int]$Enemy.Health) - $($Player.Attack)
                 $Enemy['Health'] = $Amount
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
             }
             Heal
             {
                 Write-Host "You heal yourself!." -ForegroundColor Yellow
-                Write-Host "+3 HP" -ForegroundColor Green
-                $Amount = ([int]$Player.Health) + 3
+                $HealCalc = 3 + ([int]$Player.Magic)
+                Write-Host "+$($HealCalc) HP" -ForegroundColor Green
+                $Amount = ([int]$Player.Health) + $HealCalc
                 ([int]$Player.Health) = $Amount
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
             }
         }
     }
 }
 
-$Player = @{
-    Name        = "Player"
-    Health      = 10
-    Attack      = 1
-    Defence     = 0
-    Item1       = $null
-}
-
-$Deck = @("Smash", "Stab", "Stab", "Stab", "Stab", "Heal")
-
-# Spider details
-$Spider = @{
-    Name        = "Spider"
-    Health      = 10
-    Attack      = 1
-    Skill1      = "Venom"
-    Skill1DMG   = 3
-    Block       = 2
-    Dead        = $false
-}
-
-# Ogre details
-$Ogre = @{
-    Name        = "Ogre"
-    Health      = 15
-    Attack      = 1
-    Skill1      = "Slam"
-    Skill1DMG   = 5
-    Block       = 2
-    Dead        = $false
-}
-
-
-# Enemy
-$EnemyList = @($Spider, $Ogre)
-$Enemy = Get-Random -InputObject $EnemyList
-$EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack")
-
-Clear-Host
-
-Write-Host "----------------------------------------" -ForegroundColor Yellow
-Write-Host "As you walk down a narrow path, you're suddenly met with a foe!"
-Write-Host "You've encountered a wild" $($Enemy.Name)"!"
-Write-Host "----------------------------------------" -ForegroundColor Yellow
-Start-Sleep 1
-
-Do{
+function Deal-Hand {
 
     # Reroll Hand.
     $Hand = @()
@@ -183,14 +139,22 @@ Do{
             }
 
     # Deal fixed hand.
-    $Hand += @($Card1, $Card2, $Card3)
+    $Hand = @($Card1, $Card2, $Card3)
 
-    # Start the fight
-    Start-Battle
+    # Return result to outside of the Array.
+    return $Hand
+}
 
-    # # player attacking phase
+function Start-RealBattle{
+
+    # Sort Hand
+    $Hand = Deal-Hand
+
+    # Display UI
+    Start-UI
+
+    # Player chooses a card.
     $Choice = Read-Host "Which Card?"
-    Write-Host ""
 
     # Cleanup screen
     Clear-Host
@@ -200,16 +164,12 @@ Do{
 
     # Player Attack phase
     Player-Attack
-    Write-Host "----------------------------------------" -ForegroundColor Yellow
+    
     # Buffer
     Start-Sleep 1
 
-
     # Enemy attacking phase
     Enemy-Attack
-
-    # UI fixing
-    Write-Host "----------------------------------------" -ForegroundColor Yellow
 
     # Add to Turn counter.
     $TurnAdd = ([int]$Turn) + 1
@@ -222,19 +182,82 @@ Do{
         Write-Host "You DIED!" -ForegroundColor Red
         exit
     }
+}
 
+$Player = @{
+    Name        = "Player"
+    Health      = 10
+    Magic       = 0
+    Attack      = 1
+    Defence     = 0
+    Item1       = $null
+}
+
+$Deck = @("Smash", "Stab", "Stab", "Stab", "Stab", "Heal")
+
+# Spider details
+$Spider = @{
+    Name        = "Spider"
+    Health      = 10
+    Attack      = 1
+    Skill1      = "Venom"
+    Skill1DMG   = 3
+    Block       = 2
+    AttackList  = "Attack", "Attack", "Attack", $Spider.Skill1
+    Dead        = $false
+}
+
+# Ogre details
+$Ogre = @{
+    Name        = "Ogre"
+    Health      = 15
+    Attack      = 1
+    Skill1      = "Slam"
+    Skill1DMG   = 4
+    Block       = 2
+    AttackList  = "Attack", "Attack", "Attack", $Ogre.Skill1, "Attack"
+    Dead        = $false
+
+}
+
+
+# Enemy
+$EnemyList = @($Spider, $Ogre)
+$Enemy = Get-Random -InputObject $EnemyList
+# $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack")
+
+If($Enemy -match $Ogre){
+
+    $EnemyAttackList = $Ogre.AttackList
+
+}
+
+If($Enemy -match $Spider){
+
+    $EnemyAttackList = $Spider.AttackList
+
+}
+
+Clear-Host
+
+Write-Host "----------------------------------------" -ForegroundColor Yellow
+Write-Host "As you walk down a narrow path, you're suddenly met with a foe!"
+Write-Host "You've encountered a wild" $($Enemy.Name)"!"
+Write-Host "----------------------------------------" -ForegroundColor Yellow
+Start-Sleep 1
+
+Do{
+
+Start-RealBattle
 
 }
 Until($Enemy.Health -lt 1)
-
-
 
 Write-Host "You win!" -ForegroundColor Green
 
 # Add to Round counter.
 $RoundAdd = ([int]$Round) + 1
 $Round = $RoundAdd
-
 $Enemy.Dead = $true
 
 # Give-PlayerItem
@@ -266,6 +289,12 @@ If($enemy.dead -eq $true){
 
         # Reset mob hp.
         $Spider.Health = 10
+    }
+
+    If($enemy.Name -match "Ogre"){
+        # Reset mob hp.
+        $Ogre.Health = 15
+
 
     }
 
@@ -290,89 +319,10 @@ Start-Sleep 3
 # fight 2
 Do{
 
-    # Reroll Hand.
-    $Hand = @()
-    $Card1 = Get-Random -InputObject $Deck
-    $Card2 = Get-Random -InputObject $Deck
-    $Card3 = Get-Random -InputObject $Deck
-
-        # Check hand for duplicate heals.
-        If($Card1 -eq "Heal"){
-
-            # Check Card2 
-            If($Card2 -eq "Heal"){
-                Do{
-                    Write-Host "SYSTEM: Rerolling Card 2 because Card 1 was a heal." -ForegroundColor Blue
-                    Write-Host "----------------------------------------" -ForegroundColor Yellow
-                $Card2 = Get-Random -InputObject $Deck
-                }
-                Until($Card2 -ne "Heal")
-            }
-
-            # Check Card3
-            If($Card3 -eq "Heal"){
-                    Do{
-                        Write-Host "SYSTEM: Rerolling Card 3 because Card 1 was a heal." -ForegroundColor Blue
-                        Write-Host "----------------------------------------" -ForegroundColor Yellow
-                    $Card3 = Get-Random -InputObject $Deck
-                    }
-                    Until($Card3 -ne "Heal")
-            }
-        }
-            # Check if Card2 is heal
-            If($Card2 -eq "Heal"){
-                # Only check Card3 because it would have to successfully pass Card1 check.
-                If($Card3 -eq "Heal"){
-                    Do{
-                        Write-Host "SYSTEM: Rerolling Card 3 because Card 2 was a heal." -ForegroundColor Blue
-                        Write-Host "----------------------------------------" -ForegroundColor Yellow
-                    $Card3 = Get-Random -InputObject $Deck
-                    }
-                    Until($Card3 -ne "Heal")
-                }
-            }
-            # Check if Card3 is heal
-            If($Card3 -eq "Heal"){
-                # Only check Card2 because it would have to successfully pass Card1 check.
-                If($Card2 -eq "Heal"){
-                    Do{
-                        Write-Host "SYSTEM: Rerolling Card 2 because Card 3 was a heal." -ForegroundColor Blue
-                        Write-Host "----------------------------------------" -ForegroundColor Yellow
-                    $Card3 = Get-Random -InputObject $Deck
-                    }
-                    Until($Card3 -ne "Heal")
-                }
-            }
-
-    # Deal fixed hand.
-    $Hand += @($Card1, $Card2, $Card3)
-
-    # Start the fight
-    Start-Battle
-
-    # Enemy attacking phase
-    Enemy-Attack
-
-    # UI fixing
-    Write-Host "----------------------------------------" -ForegroundColor Yellow
-
-    # Add to Turn counter.
-    $TurnAdd = ([int]$Turn) + 1
-    $Turn = $TurnAdd
-
-    Start-Sleep 1
-
-    # End game if HP reaches 0
-    If($Player.Health -lt 1){
-        Write-Host "You DIED!" -ForegroundColor Red
-        exit
-    }
-
+Start-RealBattle
 
 }
 Until($Enemy.Health -lt 1)
-
-
 
 Write-Host "You win!" -ForegroundColor Green
 
@@ -381,4 +331,3 @@ $RoundAdd = ([int]$Round) + 1
 $Round = $RoundAdd
 
 $Enemy.Dead = $true
-$enemy.dead
