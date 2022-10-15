@@ -1,7 +1,7 @@
 # Created by Steven Notridge
 # Some parts are useful for now but whatever.
 # Might continue working on this, could be quite fun.
-# V0.2
+# V0.2b
 
 # Main frame.
 $Turn = 1
@@ -48,47 +48,37 @@ function Start-Battle {
     Write-Host "----------------------------------------" -ForegroundColor Yellow
     Write-Host "Your hand is:" $Hand[0], $Hand[1], $Hand[2] -ForegroundColor Cyan
     Write-Host "----------------------------------------" -ForegroundColor Yellow
-    $Choice = Read-Host "Which Card?"
-    Write-Host ""
-
-    # Cleanup screen
-    Clear-Host
-
-    Write-Host "----------------------------------------" -ForegroundColor Yellow
-
-        If($Hand -match $Choice){
-            Switch ($Choice)
-            {
-                Smash
-                {
-                    $Smash = 3 * $Player.Attack
-                    $Amount = ([int]$Enemy.Health) - $Smash
-                    Write-Host "You Smash the enemy, dealing $($Smash) damage!" -ForegroundColor Yellow
-                    $Enemy['Health'] = $Amount
-                }
-                Stab
-                {
-                    Write-Host "You stab the enemy, dealing $($Player.Attack) damage!" -ForegroundColor Yellow
-                    $Amount = ([int]$Enemy.Health) - $($Player.Attack)
-                    $Enemy['Health'] = $Amount
-                }
-                Heal
-                {
-                    Write-Host "You heal yourself!." -ForegroundColor Yellow
-                    Write-Host "+3 HP" -ForegroundColor Green
-                    $Amount = ([int]$Player.Health) + 3
-                    ([int]$Player.Health) = $Amount
-                }
-            }
-        }
-        
-        # Buffer
-        Start-Sleep 1
-        Write-Host "----------------------------------------" -ForegroundColor Yellow
-
 
 }
 
+function Player-Attack {
+
+    If($Hand -match $Choice){
+        Switch ($Choice)
+        {
+            Smash
+            {
+                $Smash = 3 * $Player.Attack
+                $Amount = ([int]$Enemy.Health) - $Smash
+                Write-Host "You Smash the enemy, dealing $($Smash) damage!" -ForegroundColor Yellow
+                $Enemy['Health'] = $Amount
+            }
+            Stab
+            {
+                Write-Host "You stab the enemy, dealing $($Player.Attack) damage!" -ForegroundColor Yellow
+                $Amount = ([int]$Enemy.Health) - $($Player.Attack)
+                $Enemy['Health'] = $Amount
+            }
+            Heal
+            {
+                Write-Host "You heal yourself!." -ForegroundColor Yellow
+                Write-Host "+3 HP" -ForegroundColor Green
+                $Amount = ([int]$Player.Health) + 3
+                ([int]$Player.Health) = $Amount
+            }
+        }
+    }
+}
 
 $Player = @{
     Name        = "Player"
@@ -132,9 +122,9 @@ Clear-Host
 
 Write-Host "----------------------------------------" -ForegroundColor Yellow
 Write-Host "As you walk down a narrow path, you're suddenly met with a foe!"
-Start-Sleep 1
 Write-Host "You've encountered a wild" $($Enemy.Name)"!"
 Write-Host "----------------------------------------" -ForegroundColor Yellow
+Start-Sleep 1
 
 Do{
 
@@ -197,6 +187,23 @@ Do{
 
     # Start the fight
     Start-Battle
+
+    # # player attacking phase
+    $Choice = Read-Host "Which Card?"
+    Write-Host ""
+
+    # Cleanup screen
+    Clear-Host
+
+    # UI
+    Write-Host "----------------------------------------" -ForegroundColor Yellow
+
+    # Player Attack phase
+    Player-Attack
+    Write-Host "----------------------------------------" -ForegroundColor Yellow
+    # Buffer
+    Start-Sleep 1
+
 
     # Enemy attacking phase
     Enemy-Attack
@@ -280,7 +287,7 @@ Write-Host "You've encountered a wild" $($Enemy.Name)"!"
 Write-Host "----------------------------------------" -ForegroundColor Yellow
 Start-Sleep 3
 
-
+# fight 2
 Do{
 
     # Reroll Hand.
