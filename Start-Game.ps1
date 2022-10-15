@@ -203,7 +203,6 @@ $Spider = @{
     Skill1      = "Venom"
     Skill1DMG   = 3
     Block       = 2
-    AttackList  = "Attack", "Attack", "Attack", $Spider.Skill1
     Dead        = $false
 }
 
@@ -215,26 +214,21 @@ $Ogre = @{
     Skill1      = "Slam"
     Skill1DMG   = 4
     Block       = 2
-    AttackList  = "Attack", "Attack", "Attack", $Ogre.Skill1, "Attack"
     Dead        = $false
 
 }
 
-
 # Enemy
 $EnemyList = @($Spider, $Ogre)
-$Enemy = Get-Random -InputObject $EnemyList
-# $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack")
+$Enemy = Get-Random -InputObject $EnemyList 
 
 If($Enemy -match $Ogre){
-
-    $EnemyAttackList = $Ogre.AttackList
+    $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack", "Attack")
 
 }
 
 If($Enemy -match $Spider){
-
-    $EnemyAttackList = $Spider.AttackList
+    $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack")
 
 }
 
@@ -247,9 +241,9 @@ Write-Host "----------------------------------------" -ForegroundColor Yellow
 Start-Sleep 1
 
 Do{
-
-Start-RealBattle
-
+    Write-Host "Enemy Attack List"
+    $EnemyAttackList 
+    Start-RealBattle
 }
 Until($Enemy.Health -lt 1)
 
