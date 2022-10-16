@@ -1,13 +1,11 @@
 # Created by Steven Notridge
 # Some parts are useful for now but whatever.
 # Might continue working on this, could be quite fun.
-# V0.3
+# V0.4
 
 # Main frame.
 $Turn = 1
 $Round = 1
-$Item = @()
-
 function Enemy-Attack {
     # Enemy attack turn
     If($Enemy.Health -gt 0){
@@ -71,12 +69,22 @@ function Player-Attack {
             }
             Heal
             {
-                Write-Host "You heal yourself!." -ForegroundColor Yellow
+                Write-Host "You heal yourself!" -ForegroundColor Yellow
                 $HealCalc = 3 + ([int]$Player.Magic)
-                Write-Host "+$($HealCalc) HP" -ForegroundColor Green
                 $Amount = ([int]$Player.Health) + $HealCalc
-                ([int]$Player.Health) = $Amount
+
+                # Max HP Check
+                if($Amount -lt $Player.MaxHP){
+                    ([int]$Player.Health) = $Amount
+                    Write-Host "+$($HealCalc) HP (Total = $([int]$Player.Health))" -ForegroundColor Green
+                }
+                if($Amount -gt $Player.MaxHP){
+                    Write-Host "SYSTEM: Cannot heal above" $Player.MaxHP "(Max HP)" -ForegroundColor Blue
+                    ([int]$Player.Health) = ([int]$Player.MaxHP)
+                    Write-Host "HP has been fully restored! (Total = $([int]$Player.Health))" -ForegroundColor Green
+                }
                 Write-Host "----------------------------------------" -ForegroundColor Yellow
+
             }
         }
     }
@@ -141,11 +149,21 @@ function Deal-Hand {
     # Deal fixed hand.
     $Hand = @($Card1, $Card2, $Card3)
 
+    # Insult player's RNG.
+    If($Card1 -match "Stab"){
+        if($Card2 -match "Stab"){
+            if($Card3 -match "Stab"){
+                Write-Host "SYSTEM: Snake Eyes..." -ForegroundColor Blue
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
+            }
+        }
+    }
+
     # Return result to outside of the Array.
     return $Hand
 }
 
-function Start-RealBattle{
+function Start-Battle{
 
     # Sort Hand
     $Hand = Deal-Hand
@@ -184,15 +202,108 @@ function Start-RealBattle{
     }
 }
 
+function Give-Item{
+If($enemy.dead -eq $true){
+
+        # Roll for the item.
+        $Roll = Get-Random -Maximum 10
+    
+        If ($Roll -gt 4) {
+
+            # Spider's Item
+            if ($enemy.Name -match "Spider") {
+                # Item Stats
+                $SpiderFang = @{
+                    Name    = "Spider Fang"
+                    Attack  = "1"
+                    Details = "Spider Fang adds an additional +1 to the Players Attack."
+                }
+                # UI Stuff
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
+                Write-Host "You rip out one of the spiders fangs and decide to use it as a weapon!"
+                Start-Sleep 1
+                Write-Host "Spider Fang obtained!" -ForegroundColor Green
+                Start-Sleep 1
+                Write-Host "$($SpiderFang.Details)" -ForegroundColor Cyan
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
+
+                # Add to inventory
+                $Player.Item1 += $SpiderFang
+                $Amount = ([int]$Player.Attack) + 1
+                ([int]$Player.Attack) = $Amount
+            }
+            # End Spider Fang
+
+            # Ogre's Eyes
+            if ($enemy.Name -match "Ogre") {
+                # Item Stats
+                $OgreEye = @{
+                    Name    = "Ogre's Eye"
+                    Magic   = 1
+                    Details = "Ogre's eye increases Players Magic by +1." 
+                }
+
+                # UI Stuff
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
+                $Blood = Write-Host "blood" -ForegroundColor Red
+                Write-Host "You rip out one of the Ogre's eyes with your bare hands, as $blood covers your hands."
+                Start-Sleep 1
+                Write-Host "As you hold it within the palm of your hand, you feel a strange sensation flow within you."
+                Write-Host "You place tie some string around it, and hang it from your waist."
+                Start-Sleep 2
+                Write-Host "Ogre's Eye obtained!" -ForegroundColor Green
+                Start-Sleep 1
+                Write-Host "$($OgreEye.Details)" -ForegroundColor Cyan
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
+
+                # Add to inventory
+                $Player.Item2 += $OgreEye
+                $Amount = ([int]$Player.Magic) + 1
+                ([int]$Player.Magic) = $Amount
+            }
+            # End Ogre's Eyes
+        }
+    }
+}
+
+function Enemy-AttackList {
+
+    If($Enemy -match $Ogre){
+        $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack", "Attack")
+        return $EnemyAttackList
+    }
+    
+    If($Enemy -match $Spider){
+        $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack")
+        return $EnemyAttackList
+    }    
+
+}
+
+function Enemy-HPReset {
+    If($enemy.Name -match "Spider"){
+        # Reset mob hp.
+        $Spider.Health = 10
+        }
+    
+        If($enemy.Name -match "Ogre"){
+            # Reset mob hp.
+            $Ogre.Health = 15
+        }
+}
+
+# Player setup
 $Player = @{
     Name        = "Player"
     Health      = 10
+    MaxHP       = 10
     Magic       = 0
     Attack      = 1
     Defence     = 0
     Item1       = $null
+    Item2       = $null
+    Item3       = $null
 }
-
 $Deck = @("Smash", "Stab", "Stab", "Stab", "Stab", "Heal")
 
 # Spider details
@@ -215,25 +326,17 @@ $Ogre = @{
     Skill1DMG   = 4
     Block       = 2
     Dead        = $false
-
 }
 
-# Enemy
+# Enemy Setup
 $EnemyList = @($Spider, $Ogre)
 $Enemy = Get-Random -InputObject $EnemyList 
+$EnemyAttackList = Enemy-AttackList
 
-If($Enemy -match $Ogre){
-    $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack", "Attack")
-
-}
-
-If($Enemy -match $Spider){
-    $EnemyAttackList = @($Enemy.Skill1, "Attack", "Attack", "Attack")
-
-}
-
+# Clear UI. This happens after user starts the game.
 Clear-Host
 
+# Short Intro
 Write-Host "----------------------------------------" -ForegroundColor Yellow
 Write-Host "As you walk down a narrow path, you're suddenly met with a foe!"
 Write-Host "You've encountered a wild" $($Enemy.Name)"!"
@@ -241,9 +344,7 @@ Write-Host "----------------------------------------" -ForegroundColor Yellow
 Start-Sleep 1
 
 Do{
-    Write-Host "Enemy Attack List"
-    $EnemyAttackList 
-    Start-RealBattle
+    Start-Battle
 }
 Until($Enemy.Health -lt 1)
 
@@ -255,48 +356,20 @@ $Round = $RoundAdd
 $Enemy.Dead = $true
 
 # Give-PlayerItem
-
+Write-Host "The" $Enemy.Name "lies dead on the floor infront of you." -ForegroundColor Yellow
 Start-Sleep 1
 
 If($enemy.dead -eq $true){
 
-    if($enemy.Name -match "Spider"){
-        # Item Stats
-        $SpiderFang = @{
-            Name    = "Spider Fang"
-            Attack  = "1"
-            Details = "Spider Fang adds an additional +1 to the Players Attack."
-        }
-        # UI Stuff
-        Write-Host "----------------------------------------" -ForegroundColor Yellow
-        Write-Host "You rip out one of the spiders fangs and decide to use it as a weapon!"
-        Start-Sleep 1
-        Write-Host "Spider Fang obtained!" -ForegroundColor Green
-        Start-Sleep 1
-        Write-Host "$($SpiderFang.Details)" -ForegroundColor Cyan
-        Write-Host "----------------------------------------" -ForegroundColor Yellow
+    # Roll for an item after killing mob.
+    Give-Item
 
-        # Add to inventory
-        $Item1 += $SpiderFang
-        $Amount = ([int]$Player.Attack) + 1
-        ([int]$Player.Attack) = $Amount
-
-        # Reset mob hp.
-        $Spider.Health = 10
-    }
-
-    If($enemy.Name -match "Ogre"){
-        # Reset mob hp.
-        $Ogre.Health = 15
-
-
-    }
+    # HP Resets
+    Enemy-HPReset
 
 }
 Start-Sleep 1
 
-Write-Host "The" $Enemy.Name "lies dead on the floor infront of you." -ForegroundColor Yellow
-Start-Sleep 1
 Write-Host "Stepping over the foul creature, you make your way further down the path."
 Start-Sleep 1
 Write-Host "But to no surprise, another monster attacks!"
@@ -312,9 +385,7 @@ Start-Sleep 3
 
 # fight 2
 Do{
-
-Start-RealBattle
-
+Start-Battle
 }
 Until($Enemy.Health -lt 1)
 
