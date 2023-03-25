@@ -1,19 +1,7 @@
 # RogueLite
  
-Now that the initial code's been figured out thanks to a reddit post, probably best to try and start building a basic idea of how the framework should behave. I wonder if it's worth just having tons of Modules that each have an enemy inside of it or something along those lines. Or a JSON with that information in? Though, we're already struggling on the JSON front with the RecipeBook.
+The old README is gone, long live the new README.
 
-Player Stats;
-- Health - 10
-- Attack - 1
-- Defence - 1
-- Crit - 2% (Eventually)
+I'm essentially just messing with PowerShell and learning about the different methods of presenting and manipulating data. The easiest way to do this was to make this game. I have a lot of ideas and play a lot of games, so I wanted to take a shot at it. I want this to be difficult, but fun. The main priority is to learn however, and this is incredibly time consuming and becoming worse as it grows. But nothing happens in a short space of time, so I guess I'll just keep track of it and keep adding to it, because why not. 
 
-Maybe need to figure out the whole function system. Stab-Attack would be useful to just call if a choice is made. 
-
-TODO; 
-- Loop until enemy is dead (Done)
-- Different attacks, 'in hand' (Done)
-	- Hand = 2 cards for now (Ended up being 3)
-- Energy system?
-- Turns (Done)
-- Randomise Enemy attacks
+Please check the ChangeLog for actual update information, as that's also written in Markdown for easier viewing. I'm adding notes to my Obsidian file and copying that over.
