@@ -1,4 +1,4 @@
-v0.3
+### v0.3
 - Changed `Start-Battle` function and made the original `Do` section into a function. Makes more sense if you look at it. 
 - Changed the old `Start-Battle` to `Start-UI`
 - Fixed up a few parts of the 'UI' by adding the lines to the end of the attacks etc. 
@@ -7,10 +7,10 @@ v0.3
 - Changed the way the enemies attacks are created. They now have a list within their stats. This allows me to change the randomness of their attacks without affecting others. 
 - Added a section to reset Ogre's HP if you get him first. Need to fix this part up in a later version along with randomising item drops.
 
-v0.3b
+### v0.3b
 - Removed the 'AttackList' because it was struggling to handle it. It was skipping the Skills and was doing all sorts of random stuff. Now replaced with If statements after choosing the enemy, and changing the attack list inside. This might be worth changing to 'Mob Types' later on and have a more streamlined attack system.
 
-v0.4
+### v0.4
 - Created `Give-Item`, and added a new magic item from the Ogre.
 - Added two more item slots and thought of an item structure.
 - Added `Enemy-HPReset`, just another way to clean up the actual battle section a bit more.
@@ -19,7 +19,7 @@ v0.4
 - Added `MaxHP` Stat for Player. Prevent Player from going above this threshold. Should make space for later items to increase max hp.
 - Made space for `MaxHP` in the `Player-Attack`'s `Heal` spell.
 
-v0.5
+### v0.5
 - Added `Start-Round` that has the `Do Until` stuff inside, also added other parts. I'm hoping this allows me to do more later on. I don't really aim to keep adding more functions as it'll start becoming a nightmare. (Unless I start creating Modules.)
 - Changed the Monster skill details. `Skill1` is now replaced with `ATKSkill` and `MGKSkill` has been introduced. I may add `DEFSkill` soon. This should make combat a bit more diverse instead of just slapping away. 
 - Had to change details in `Enemy-AttackList` because `-match` was actually giving the Spider the same attack chances as the Ogre. I had initial issues with `-eq`. 
@@ -44,3 +44,14 @@ v0.5
 - Added a new enemy called the `Heloderma`, which utilises the new DoT system by stacking Poison.
 - And with the DoT system, I've had to add a cap on the duration and set it to five turns. I've also forced a reroll if the enemy gets the `DebuffSkill` whilst it has a duration of more than 3 turns. I just fought the `Heloderma` and it hit `9 turns` and was doing `4 damage` along with attacking.
 - I've had to cap the DoT damage system, it becomes impossible to beat in the early stages. Maybe later with higher tier enemies just change the cap limit on `FightStats.EnemyDebuffStacks`.
+
+### v0.5b
+- Added `Player.Stats` and added a table inside of it. This may become problematic in the future but i'll comment on that later.
+- Added `Tiers` to enemies details.
+- I've added `Level-Up` and generated XP based on the `Tier` of the enemies. Need to figure out an attribute system and all sorts.
+- Made a few changes to `Start-Battle` where the player types `player` to get the details. I've added the new stats etc to show up here and also formatted it a bit differently into a table instead of just lines. 
+- PlayerDebuffs now reset after the enemy is dead.
+- Added `Start-Shop` function that creates a small GUI for buying items, it also shows equipped items. 
+- Added `Get-GameHelp` function that will bring up a window displaying extra commands that can be used. I should add more to this eventually though.
+- Typing nothing no longer consumes a turn, instead you will be prompted again for another input.
+- Fixed DoT damage carrying over it's stacks and duration. 
