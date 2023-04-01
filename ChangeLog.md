@@ -55,3 +55,15 @@
 - Added `Get-GameHelp` function that will bring up a window displaying extra commands that can be used. I should add more to this eventually though.
 - Typing nothing no longer consumes a turn, instead you will be prompted again for another input.
 - Fixed DoT damage carrying over it's stacks and duration. 
+
+### v0.5c
+
+- Created a WinForms section for Enemy Details, replacing the previous `Get-EnemyStats` variable. 
+- Also created a WinForms section for Player Details, replacing the previous hideous display.
+- Had to remove the Array for the Player Stats because it didn't want to play ball. This will eventually help with using attributes to increase damage etc.
+- Created two functions, `Add-Attributes` and `Level-Up`. This allows the player to level up and gain skill points to increase their attributes.
+- Attributes now work and details have been added into the Level Up window.
+- Levelling restores HP to your maximum value.
+- Added damage mitigation for armour. Currently though, it's overpowered and will make you immune due to the lack of enemy variation.
+- Reworked the Smash skill due to it being previously being a multiply which was insanely strong. It is now `2 + Attack`.
+- Changed the HP for `Enemy` and `Player` it now shows as `10 / 10` in case enemies in the future can heal, and to also have an easier view of your own HP. This also means i've added `MaxHP` key for `$Enemy`.
