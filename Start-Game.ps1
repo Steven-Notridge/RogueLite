@@ -1,7 +1,7 @@
 # Created by Steven Notridge
 # Some parts are useful for now but whatever.
 # Might continue working on this, could be quite fun.
-# V0.5b
+# V0.5c
 
 # Main frame.
 $FightStats = @{
@@ -16,7 +16,9 @@ $FightStats = @{
     PlayerPotionActive = $false
     PlayerDebuff       = $false
     PlayerDebuffTurns  = 0
+    RequiredXP         = 50
 }
+
 function Enemy-Attack {
     # Enemy attack turn
     If ($Enemy.Health -gt 0) {
@@ -66,17 +68,31 @@ function Enemy-Attack {
         # Enemy attacks
         If ($EnemyChoice -eq "Attack") {
             Write-Host "The" $Enemy.Name "Attacks!" -ForegroundColor Yellow
-            $Amount = ([int]$Player.Health) - $($Enemy.Attack)
+            # Armour check
+            If($Player.Armour -gt 0){
+                $DamageValue = $($Enemy.Attack) - $($Player.Armour)
+            }
+            If($Player.Armour -lt 1){
+                $DamageValue = $($Enemy.Attack)
+            }
+            $Amount = ([int]$Player.Health) - $DamageValue
             ([int]$Player.Health) = $Amount
-            Write-Host "-$($Enemy.Attack) HP" -ForegroundColor Red
+            Write-Host "-$DamageValue HP" -ForegroundColor Red
             Write-Host "----------------------------------------" -ForegroundColor Yellow
         }
 
         If ($EnemyChoice -eq $Enemy.ATKSkill) {
             Write-Host "The" $Enemy.Name "uses their $($Enemy.ATKSkill) ability!" -ForegroundColor Yellow
-            $Amount = ([int]$Player.Health) - $($Enemy.ATKSkillDMG)
+            # Armour check
+            If ($Player.Armour -gt 0) {
+                $DamageValue = $($Enemy.ATKSkillDMG) - $($Player.Armour)
+            }
+            If($Player.Armour -lt 1){
+                $DamageValue = $($Enemy.ATKSkillDMG)
+            }
+            $Amount = ([int]$Player.Health) - $DamageValue
             ([int]$Player.Health) = $Amount
-            Write-Host "-$($Enemy.ATKSkillDMG) HP" -ForegroundColor Red
+            Write-Host "-$DamageValue HP" -ForegroundColor Red
             Write-Host "----------------------------------------" -ForegroundColor Yellow
         }
 
@@ -125,8 +141,9 @@ function Enemy-Attack {
             If ($FightStats.EnemyBuffTurns -lt 1) {
                 # Reset attack stat if buff expires.
                 $enemy.attack = 1
-                Write-Host "$($Enemy.Name)'s ability, $($Enemy.MGKSkill), has expired. Attack stat has been reset to $($Enemy.Attack)"
+                Write-Host "SYSTEM: $($Enemy.Name)'s ability, $($Enemy.MGKSkill), has expired. Attack stat has been reset to $($Enemy.Attack)" -ForegroundColor Blue
                 $FightStats.EnemyBuffed = $false
+                Write-Host "----------------------------------------" -ForegroundColor Yellow
             }
         }
 
@@ -181,9 +198,9 @@ function Start-UI {
 
     # Turn Stats
     $HPMessage = Write-Host "Your HP" -ForegroundColor Green -NoNewline
-    Write-Host $($HPMessage) "=" $($Player.Health)
+    Write-Host $($HPMessage) "=" $($Player.Health) "/" $($Player.MaxHP)
     $EnemyHPMSG = Write-Host "$($Enemy.Name) HP" -ForegroundColor Red -NoNewline
-    Write-Host $($EnemyHPMSG) "=" $($Enemy.Health)
+    Write-Host $($EnemyHPMSG) "=" $($Enemy.Health) "/" $($Enemy.MaxHP)
     Write-Host "Turn:" $FightStats.Turn
     Write-Host "Round:" $FightStats.Round
     Write-Host "Gold:" $($Player.Gold)
@@ -340,10 +357,11 @@ function Restart-UI {
 
 function Player-Attack {
 
+    # This needs to be here for the attack calculation.
     If ($Hand -match $Choice) {
         Switch ($Choice) {
             Smash {
-                $Smash = 3 * $Player.Attack
+                $Smash = 2 + $Player.Attack
                 $Amount = ([int]$Enemy.Health) - $Smash
                 Write-Host "You Smash the enemy, dealing $($Smash) damage!" -ForegroundColor Yellow
                 $Enemy['Health'] = $Amount
@@ -527,7 +545,7 @@ function Get-GameHelp {
 
     # Create a hashtable to store help information
     $helpInfo = @{
-        "Details" = "You can use this command to get more details about the current fight that's occuring."
+        "Details" = "Mostly a Debug function that will display information about the fight. This helps to figure out if something is set, like a debuff even though it shouldn't be active."
         "Player"  = "This displays information about your Character."
         "Enemy"   = "This displays information about the enemy you are fighting."
     }
@@ -559,7 +577,7 @@ function Start-Battle {
         # Maybe I should do anoter Do Until here? do $Choice until $Choice -eq $Hand?
         If ($Choice -eq "details") {
             Write-Host "Details below."
-            # $FightStats | % { [PSCustomObject]$_ } 
+            $FightStats | % { [PSCustomObject]$_ } 
 
             Read-Host "Continue?"
             Restart-UI
@@ -567,19 +585,8 @@ function Start-Battle {
         }
 
         If ($Choice -eq "player") {
-            Write-Host "Player Details below."
-            Write-Host "----------------------------------------" -ForegroundColor Yellow
-            # $Player | Select-Object Name, Health, MaxHp, Attack, Magic, Defence, Gold, Item1, Item2, Item3, Potion
-            $Player | % { [PSCustomObject]$_ } | Sort-Object -Property Name | Format-Table Name, Level, Health, MaxHp, Attack, Magic, Defence, Gold, Experience -Autosize
-            $PlayerItems = $Player | Select-Object Item1, Item2, Item3, Potion
-            $PlayerItems | Out-String
-            Write-Host "----------------------------------------" -ForegroundColor Yellow
-            $Player.Stats | % { [PSCustomObject]$_ } | Sort-Object -Property Stats | Format-Table Name, Amount -Autosize
-            Write-Host "----------------------------------------" -ForegroundColor Yellow
-        
-            Read-Host "Continue?"
+            Get-PlayerStats
             Restart-UI
-            # $Choice = Read-Host "Which Card?"
         }
 
         If ($Choice -eq "godmode") {
@@ -592,13 +599,8 @@ function Start-Battle {
         }
 
         If ($Choice -eq "enemy") {
-            Write-Host "Enemy Details below."
-            Write-Host "----------------------------------------" -ForegroundColor Yellow
             Get-EnemyStats
-            Write-Host "----------------------------------------" -ForegroundColor Yellow
-            Read-Host "Continue?"
             Restart-UI
-            # $Choice = Read-Host "Which Card?"
         }
 
         If ($Choice -eq "help") {
@@ -630,17 +632,14 @@ function Start-Battle {
         #     $Choice = Read-Host "Which Card?"
         # }
 
-        # Doesn't work properly.
         If ([bool]$Choice -eq $false) {
             Write-Host "You must choose a card."
-            Read-Host "Continue?"
-            Restart-UI
         }
 
     }
     
     until (
-        $Hand -match $Choice
+        $Hand -eq $Choice
     )
 
     # Cleanup screen
@@ -848,10 +847,12 @@ function Start-Round {
     If ($enemy.dead -eq $true) {
 
         # Roll for an item after killing mob.
-        Give-Item
+        # Give-Item
         
         # Give the Player gold.
         Give-Gold
+
+        Give-XP
 
         Read-Host "Press any key to continue"
 
@@ -872,54 +873,263 @@ function Start-Round {
 }
 
 function Get-EnemyStats {
-    $EnemyDetails = @()
+    Add-Type -AssemblyName System.Windows.Forms
+    $Form = New-Object System.Windows.Forms.Form
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    $Form.ClientSize = '350,350'
+    $Form.Text = $($Enemy.Name) + " Details"
+    $Form.Font = New-Object System.Drawing.Font("Segoe UI", 10)
 
-    If ([bool]$enemy.MGKSkill -eq $false) {
-        $EnemyMGKSkill = "N/A"
-        $EnemyBuffAMT = "N/A"
-        $EnemyMGKBufftime = "N/A"
-    }
-    If ([bool]$enemy.MGKSkill -eq $true) {
-        $EnemyMGKSkill = $Enemy.MGKSkill
-        $EnemyBuffAMT = $Enemy.MGKBuffAMT
-        $EnemyMGKBuffTime = $Enemy.Bufftime
-    }
-    If ([bool]$Enemy.ATKSkill -eq $false) {
-        $EnemyATKSkill = "N/A"
-        $EnemyATKSkillDMG = "N/A"
-    }
+    # Set Dark Theme
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(64, 64, 64)
+    $TextColor = [System.Drawing.Color]::White
+    $form.BackColor = $BackgroundColor
+    $form.ForeColor = $TextColor
+    # $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+    $form.StartPosition = "CenterScreen"
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+
+    # Exit Button
+    $btnClose = New-Object System.Windows.Forms.Button
+    $btnClose.Location = New-Object System.Drawing.Point(150, 300)
+    $btnClose.Size = New-Object System.Drawing.Size(75, 23)
+    $btnClose.Text = "Close"
+    $btnClose.Add_Click({ $form.Close() })
+    $form.Controls.Add($btnClose)
+
+    # Enemy Name Label
+    $NameLabel = New-Object System.Windows.Forms.Label
+    $NameLabel.Location = '20, 20'
+    $NameLabel.Size = '120, 20'
+    $NameLabel.Text = 'Name:'
+    $NameLabel.AutoSize = $true
+    $NameLabel.ForeColor = $TextColor
+    $Form.Controls.Add($NameLabel)
+
+    # Enemy Name Value
+    $NameValue = New-Object System.Windows.Forms.Label
+    $NameValue.Location = '150, 20'
+    $NameValue.Size = '120, 20'
+    $NameValue.Text = $Enemy.Name
+    $Form.Controls.Add($NameValue)
+
+    # Enemy Health Label
+    $HealthLabel = New-Object System.Windows.Forms.Label
+    $HealthLabel.Location = '20, 40'
+    $HealthLabel.Size = '120, 20'
+    $HealthLabel.Text = 'Health:'
+    $Form.Controls.Add($HealthLabel)
+
+    # Enemy Health Value
+    $HealthValue = New-Object System.Windows.Forms.Label
+    $HealthValue.Location = '150, 40'
+    $HealthValue.Size = '120, 20'
+    $HealthValue.Text = $Enemy.Health
+    $Form.Controls.Add($HealthValue)
+
+    # Enemy Attack Label
+    $AttackLabel = New-Object System.Windows.Forms.Label
+    $AttackLabel.Location = '20, 60'
+    $AttackLabel.Size = '120, 20'
+    $AttackLabel.Text = 'Attack:'
+    $Form.Controls.Add($AttackLabel)
+
+    # Enemy Attack Value
+    $AttackValue = New-Object System.Windows.Forms.Label
+    $AttackValue.Location = '150, 60'
+    $AttackValue.Size = '120, 20'
+    $AttackValue.Text = $Enemy.Attack
+    $Form.Controls.Add($AttackValue)
+
+    # For Attack Skills
     If ([bool]$Enemy.ATKSkill -eq $true) {
-        $EnemyATKSkill = $Enemy.ATKSkill
-        $EnemyATKSkillDMG = $Enemy.ATKSkillDMG
-    }
-    If ([bool]$Enemy.DebuffSkill -eq $true) {
-        $EnemyDebuffSkill = $Enemy.DebuffSkill
-        $EnemyDebuffDuration = $Enemy.DebuffDUR
-        $EnemyDebuffDMG = $Enemy.DebuffDMG
-    }
-    If ([bool]$Enemy.DebuffSkill -eq $false) {
-        $EnemyDebuffSkill = "N/A"
-        $EnemyDebuffDuration = "N/A"
-        $EnemyDebuffDMG = "N/A"
+        # Enemy ATKSkill Label
+        $ATKSkillLabel = New-Object System.Windows.Forms.Label
+        $ATKSkillLabel.Location = '20, 80'
+        $ATKSkillLabel.Size = '120, 20'
+        $ATKSkillLabel.Text = 'ATK Skill:'
+        $Form.Controls.Add($ATKSkillLabel)
+
+        # Enemy ATKSkill Value
+        $ATKSkillValue = New-Object System.Windows.Forms.Label
+        $ATKSkillValue.Location = '150, 80'
+        $ATKSkillValue.Size = '120, 20'
+        $ATKSkillValue.Text = $Enemy.ATKSkill
+        $Form.Controls.Add($ATKSkillValue)
+
+        # Enemy ATKSkillDMG Label
+        $ATKSkillDMGLabel = New-Object System.Windows.Forms.Label
+        $ATKSkillDMGLabel.Location = '20, 100'
+        $ATKSkillDMGLabel.Size = '120, 20'
+        $ATKSkillDMGLabel.Text = 'ATK Skill DMG:'
+        $Form.Controls.Add($ATKSkillDMGLabel)
+
+        # Enemy ATKSkillDMG Value
+        $ATKSkillDMGValue = New-Object System.Windows.Forms.Label
+        $ATKSkillDMGValue.Location = '150, 100'
+        $ATKSkillDMGValue.Size = '120, 20'
+        $ATKSkillDMGValue.Text = $Enemy.ATKSkillDMG
+        $Form.Controls.Add($ATKSkillDMGValue)
     }
 
-    $EnemyDetails += New-Object -Type PSObject -Property @{
-        Name           = $Enemy.Name
-        Health         = $Enemy.Health
-        Attack         = $Enemy.Attack
-        AttackSkill    = $EnemyATKSkill
-        ATKSkillDMG    = $EnemyATKSkillDMG
-        MGKSkill       = $EnemyMGKSkill
-        MGKBuffAMT     = $EnemyBuffAMT
-        BuffTime       = $EnemyMGKBufftime
-        DebuffSkill    = $EnemyDebuffSkill
-        DebuffDuration = $EnemyDebuffDuration
-        DebuffDMG      = $EnemyDebuffDMG
-        Block          = $Enemy.Block
-        Info           = $Enemy.Details
+    # For Magic Skills
+    If ([bool]$Enemy.MGKSkill -eq $true) {
+        # Enemy MGKSkill Label
+        $MGKSkillLabel = New-Object System.Windows.Forms.Label
+        $MGKSkillLabel.Location = '20, 80'
+        $MGKSkillLabel.Size = '120, 20'
+        $MGKSkillLabel.Text = 'MGK Skill:'
+        $Form.Controls.Add($MGKSkillLabel)
+
+        # Enemy ATKSkill Value
+        $MGKSkillValue = New-Object System.Windows.Forms.Label
+        $MGKSkillValue.Location = '150, 80'
+        $MGKSkillValue.Size = '120, 20'
+        $MGKSkillValue.Text = $Enemy.MGKSkill
+        $Form.Controls.Add($MGKSkillValue)
+
+        # If it's not a buff
+        if ($Enemy.MGKBuff -eq $False) {
+            # Enemy MGKSkillBuff Label
+            $MGKSkillDMGLabel = New-Object System.Windows.Forms.Label
+            $MGKSkillDMGLabel.Location = '20, 100'
+            $MGKSkillDMGLabel.Size = '120, 20'
+            $MGKSkillDMGLabel.Text = 'MGK Skill DMG:'
+            $Form.Controls.Add($MGKSkillDMGLabel)
+
+            # Enemy MGKSkillBuff Value
+            $MGKSkillDMGValue = New-Object System.Windows.Forms.Label
+            $MGKSkillDMGValue.Location = '150, 100'
+            $MGKSkillDMGValue.Size = '120, 20'
+            $MGKSkillDMGValue.Text = $Enemy.MGKSkillDMG
+            $Form.Controls.Add($MGKSkillDMGValue)
+        }
+
+        # If it is a buff
+        if ($Enemy.MGKBuff -eq $True) {
+            # Enemy MGKSkillBuff Label
+            $MGKBuffLabel = New-Object System.Windows.Forms.Label
+            $MGKBuffLabel.Location = '20, 100'
+            $MGKBuffLabel.Size = '120, 20'
+            $MGKBuffLabel.Text = 'MGK Buff Details:'
+            $Form.Controls.Add($MGKBuffLabel)
+
+            # Check what kind of buff it is.
+            If ($Enemy.MGKBuffType -eq "ATK") {
+                # Enemy MGKSkillBuff Value
+                $MGKBuffValue = New-Object System.Windows.Forms.Label
+                $MGKBuffValue.Location = '150, 100'
+                $MGKBuffValue.Size = '200, 20'
+                $MGKBuffValue.Text = "Boosts ATK by " + $Enemy.MGKBuffAMT + " for " + $Enemy.BuffTime + " Turns."
+                $Form.Controls.Add($MGKBuffValue)
+            }
+        }
     }
-    $EnemyDetails = $EnemyDetails | Select-Object Name, Health, Attack, AttackSkill, ATKSkillDMG, MGKSkill, MGKBuffAMT, BuffTime, DebuffSkill, DebuffDuration, DebuffDMG, Block, Info
-    return $EnemyDetails | Out-String
+
+    # For Debuffs
+    If ([bool]$Enemy.DebuffSkill -eq $true) {
+        # Enemy DebuffName Label
+        $DebuffNameLabel = New-Object System.Windows.Forms.Label
+        $DebuffNameLabel.Location = '20, 80'
+        $DebuffNameLabel.Size = '120, 20'
+        $DebuffNameLabel.Text = 'Debuff Skill:'
+        $Form.Controls.Add($DebuffNameLabel)
+
+        # Enemy DebuffName Value
+        $DebuffNameValue = New-Object System.Windows.Forms.Label
+        $DebuffNameValue.Location = '150, 80'
+        $DebuffNameValue.Size = '120, 20'
+        $DebuffNameValue.Text = $Enemy.DebuffSkill
+        $Form.Controls.Add($DebuffNameValue)
+
+        # Enemy DebuffDetails Label
+        $DebuffLabel = New-Object System.Windows.Forms.Label
+        $DebuffLabel.Location = '20, 100'
+        $DebuffLabel.Size = '120, 20'
+        $DebuffLabel.Text = 'Debuff Details:'
+        $Form.Controls.Add($DebuffLabel)
+
+        # Check Debuff Types
+        If ($Enemy.DebuffType -eq "ATK") {
+            # Enemy Debuff Value
+            $DebuffValue = New-Object System.Windows.Forms.Label
+            $DebuffValue.Location = '150, 100'
+            $DebuffValue.Size = '200, 20'
+            $DebuffValue.Text = "Reduces ATK by " + $Enemy.DebuffDMG + " for " + $Enemy.DebuffDUR + " Turns."
+            $Form.Controls.Add($DebuffValue)
+        }
+
+        If ($Enemy.DebuffType -eq "DEF") {
+            # Enemy Debuff Value
+            $DebuffValue = New-Object System.Windows.Forms.Label
+            $DebuffValue.Location = '150, 100'
+            $DebuffValue.Size = '200, 20'
+            $DebuffValue.Text = "Reduces DEF by " + $Enemy.DebuffDMG + " for " + $Enemy.DebuffDUR + " Turns."
+            $Form.Controls.Add($DebuffValue)
+        }
+
+        If ($Enemy.DebuffType -eq "MGK") {
+            # Enemy Debuff Value
+            $DebuffValue = New-Object System.Windows.Forms.Label
+            $DebuffValue.Location = '150, 100'
+            $DebuffValue.Size = '200, 20'
+            $DebuffValue.Text = "Reduces DEF by " + $Enemy.DebuffDMG + " for " + $Enemy.DebuffDUR + " Turns."
+            $Form.Controls.Add($DebuffValue)
+        }
+
+        If ($Enemy.DebuffType -eq "DOT") {
+            # Enemy Debuff Value
+            $DebuffValue = New-Object System.Windows.Forms.Label
+            $DebuffValue.Location = '150, 100'
+            $DebuffValue.Size = '200, 20'
+            $DebuffValue.Text = "Deals " + $Enemy.DebuffDMG + " DMG for " + $Enemy.DebuffDUR + " Turns."
+            $Form.Controls.Add($DebuffValue)
+        }
+    }
+
+    # Enemy Block Label
+    $BlockLabel = New-Object System.Windows.Forms.Label
+    $BlockLabel.Location = '20, 120'
+    $BlockLabel.Size = '120, 20'
+    $BlockLabel.Text = 'Block:'
+    $Form.Controls.Add($BlockLabel)
+
+    # Enemy Block Value
+    $BlockValue = New-Object System.Windows.Forms.Label
+    $BlockValue.Location = '150, 120'
+    $BlockValue.Size = '120, 20'
+    $BlockValue.Text = $Enemy.Block
+    $Form.Controls.Add($BlockValue)
+
+    # Enemy Tier Label
+    $TierLabel = New-Object System.Windows.Forms.Label
+    $TierLabel.Location = '20, 140'
+    $TierLabel.Size = '120, 20'
+    $TierLabel.Text = 'Tier:'
+    $Form.Controls.Add($TierLabel)
+
+    # Enemy Tier Value
+    $TierValue = New-Object System.Windows.Forms.Label
+    $TierValue.Location = '150, 140'
+    $TierValue.Size = '120, 20'
+    $TierValue.Text = $Enemy.Tier
+    $Form.Controls.Add($TierValue)
+
+    # Enemy Details
+    # Create a text box to display help information
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Multiline = $true
+    $textBox.ReadOnly = $true
+    $textBox.ScrollBars = "Vertical"
+    $textBox.Size = New-Object System.Drawing.Size(300, 100)
+    $textBox.Location = New-Object System.Drawing.Point(20, 170)
+    $textBox.Text = $Enemy.Details
+    $form.Controls.Add($textBox)
+
+    # Show the form
+    $form.ShowDialog() | Out-Null
 }
 
 # function Start-Shop2{
@@ -960,51 +1170,401 @@ function Get-EnemyStats {
 #     }
 # }
 
-function Level-Up {
+function Give-XP {
 
     # Give XP for enemy dying, though this might be useful to just add to the Enemy-HPReset function.
     If ($Enemy.Dead -eq $true) {
         If ($Enemy.Tier -eq "Low") {
             $XP = Get-Random -Minimum 50 -Maximum 100
+            Write-Host "You gained $XP XP!" -ForegroundColor Cyan
             $Amount = $XP + $Player.Experience
             $Player.Experience = $Amount
         }
         If ($enemy.Tier -eq "Mid") {
             $XP = Get-Random -Minimum 125 -Maximum 250
+            Write-Host "You gained $XP XP!" -ForegroundColor Cyan
             $Amount = $XP + $Player.Experience
             $Player.Experience = $Amount
         }
         If ($Enemy.Tier -eq "High") {
             $XP = Get-Random -Minimum 300 -Maximum 500
+            Write-Host "You gained $XP XP!" -ForegroundColor Cyan
             $Amount = $XP + $Player.Experience
             $Player.Experience = $Amount
         }
     }
 
+    Start-Sleep 1
+
     # Level up if threshold reached and reset to zero.
+    Level-Up
+}
+
+function Level-Up{
+    # Basic Experience Requirement System
+    If ($Player.Experience -gt $FightStats.RequiredXP){
+        Write-Host "Level Up!"
+        $Player.Experience = 0
+        $Player.Points = $Player.Points + 1
+        
+        # Change the RequiredXP for the next level.
+        If ($Player.Level -lt 11){
+            $FightStats.RequiredXP = $Player.Level * 75
+        }
+    
+        If ($Player.Level -gt 10){
+            $FightStats.RequiredXP = $Player.Level * 2 * 75
+        }
+    }
+
+    If ($Player.Points -gt 0){
+        $Player.Level++
+        Add-Attributes
+        Write-Host "Your HP has also been reset to it's maximum value."
+        
+    }
+    # Reset HP to Max after spending points in case the player chooses Defence and it adds MaxHP.
+    $Player.Health = [int]$Player.MaxHP
+}
+
+function Add-Attributes {
+    Add-Type -AssemblyName System.Windows.Forms
+    $Form = New-Object System.Windows.Forms.Form
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    $Form.ClientSize = '400,300'
+    $Form.Text = "Spend Attribute Points"
+    $Form.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+    
+    # Set Dark Theme
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(64, 64, 64)
+    $TextColor = [System.Drawing.Color]::White
+    $form.BackColor = $BackgroundColor
+    $form.ForeColor = $TextColor
+    # $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+    $form.StartPosition = "CenterScreen"
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+    
+    $Attributes = @(
+        [PSCustomObject]@{ Name = "Strength" }
+        [PSCustomObject]@{ Name = "Magic" }
+        [PSCustomObject]@{ Name = "Defence" }
+    )
+    
+    # Create an OK button to close the form
+    $button = New-Object System.Windows.Forms.Button
+    $button.Location = New-Object System.Drawing.Point(40, 170)
+    $button.Size = New-Object System.Drawing.Size(75, 23)
+    $button.Text = "OK"
+    $button.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $form.AcceptButton = $button
+    $form.Controls.Add($button)
+    
+    # Create a list box with some subjects
+    $listBox = New-Object System.Windows.Forms.ListBox
+    $listBox.Items.AddRange(@("Strength", "Magic", "Defence"))
+    $listBox.Location = New-Object System.Drawing.Point(20, 20)
+    $form.Controls.Add($listBox)
+    
+    # Create a text box to display help information
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Multiline = $true
+    $textBox.ReadOnly = $true
+    $textBox.ScrollBars = "Vertical"
+    $textBox.Size = New-Object System.Drawing.Size(200, 200)
+    $textBox.Location = New-Object System.Drawing.Point(150, 20)
+    $form.Controls.Add($textBox)
+    
+    # Create a hashtable to store help information
+    $helpInfo = @{
+        "Strength" = "Every two points increases base attack Damage by 1."
+        "Magic"    = "Every two points increases base Magic by 1. This will increase either the damage of your magic skills or increase the amount you heal for."
+        "Defence"  = "Every two points increase MaxHP by 1 and every five points increases base Armour by 1. That means flat reduction too. So if an enemy hits you for 2 damage, and you have 1 Armour, you mitigate 1 damage and you're hit for 1 damage."
+    }
+    
+    # Add an event handler to the list box to display help information for the selected subject
+    $listBox.Add_SelectedIndexChanged({
+            $selectedSubject = $listBox.SelectedItem.ToString()
+            $textBox.Text = $helpInfo[$selectedSubject]
+        })
+    
+    # Show the form and wait for the user to select an item
+    $result = $form.ShowDialog()
+    
+    # Repeat window until user spends the point.
+    Do {
+        # Check if the user clicked OK and get the selected item
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $selectedIndex = $listBox.SelectedIndex
+            $selectedAttribute = $Attributes[$selectedIndex]
+            $Player.Points - 1 | Out-Null
+            If ($selectedAttribute.Name -eq "Strength") {
+                $Player.ATRStrength++
+                if ($Player.ATRStrength % 2 -eq 0) {
+                    $Player.Attack++
+                    Write-Host "Your Attack has also increased by 1."
+                }
+            }
+            If ($selectedAttribute.Name -eq "Magic") {
+                $Player.ATRMagic++
+                if ($Player.ATRMagic % 2 -eq 0) {
+                    $Player.Magic++
+                    Write-Host "Your Magic has also increased by 1."
+                }
+            }
+            If ($selectedAttribute.Name -eq "Defence") {
+                $Player.ATRDefence++
+                if ($Player.ATRDefence % 2 -eq 0) {
+                    $Player.MaxHP++
+                    Write-Host "Your Maximum HP has also increased by 1."
+                }
+                if ($Player.ATRDefence % 5 -eq 0) {
+                    $Player.Armour++
+                    Write-Host "Your Armour has also increased by 1."
+                }
+            }
+            Write-Host "Your $($selectedAttribute.Name) has increased by 1."
+            $Player.Points-- 
+            $PointsFinish = $true
+        }
+    } until (
+        $PointsFinish -eq $true
+    )
+    
+    $form.Dispose()
+}
+
+function Get-PlayerStats {
+
+    Add-Type -AssemblyName System.Windows.Forms
+    $Form = New-Object System.Windows.Forms.Form
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+    $Form.ClientSize = '350,350'
+    $Form.Text = "Character Sheet"
+    $Form.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+
+    # Set Dark Theme
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(64, 64, 64)
+    $TextColor = [System.Drawing.Color]::White
+    $form.BackColor = $BackgroundColor
+    $form.ForeColor = $TextColor
+    # $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+    $form.StartPosition = "CenterScreen"
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+
+    # Exit Button
+    $btnClose = New-Object System.Windows.Forms.Button
+    $btnClose.Location = New-Object System.Drawing.Point(150, 300)
+    $btnClose.Size = New-Object System.Drawing.Size(75, 23)
+    $btnClose.Text = "Close"
+    $btnClose.Add_Click({ $form.Close() })
+    $form.Controls.Add($btnClose)
+
+    # Player Name Label
+    $NameLabel = New-Object System.Windows.Forms.Label
+    $NameLabel.Location = '20, 20'
+    $NameLabel.Size = '120, 20'
+    $NameLabel.Text = 'Name:'
+    $NameLabel.AutoSize = $true
+    $NameLabel.ForeColor = $TextColor
+    $Form.Controls.Add($NameLabel)
+
+    # Player Name Value
+    $NameValue = New-Object System.Windows.Forms.Label
+    $NameValue.Location = '150, 20'
+    $NameValue.Size = '175, 20'
+    $NameValue.Text = $($Player.Name) + " the Level " + ($Player.Level) + " " + ($Player.Class)
+    $Form.Controls.Add($NameValue)
+
+    # Player Health Label
+    $HealthLabel = New-Object System.Windows.Forms.Label
+    $HealthLabel.Location = '20, 40'
+    $HealthLabel.Size = '120, 20'
+    $HealthLabel.Text = 'Health:'
+    $HealthLabel.AutoSize = $true
+    $HealthLabel.ForeColor = $TextColor
+    $Form.Controls.Add($HealthLabel)
+
+    # Player Health Value
+    $HealthValue = New-Object System.Windows.Forms.Label
+    $HealthValue.Location = '150, 40'
+    $HealthValue.Size = '120, 20'
+    $HealthValue.Text = $Player.Health
+    $Form.Controls.Add($HealthValue)
+
+    # Player MaxHP Label
+    $MAXHPLabel = New-Object System.Windows.Forms.Label
+    $MAXHPLabel.Location = '20, 60'
+    $MAXHPLabel.Size = '120, 20'
+    $MAXHPLabel.Text = 'Maximum HP:'
+    $MAXHPLabel.AutoSize = $true
+    $MAXHPLabel.ForeColor = $TextColor
+    $Form.Controls.Add($MAXHPLabel)
+
+    # Player MaxHP Value
+    $MAXHPValue = New-Object System.Windows.Forms.Label
+    $MAXHPValue.Location = '150, 60'
+    $MAXHPValue.Size = '120, 20'
+    $MAXHPValue.Text = $Player.MaxHP
+    $Form.Controls.Add($MAXHPValue)
+
+    # Player Magic Label
+    $MagicLabel = New-Object System.Windows.Forms.Label
+    $MagicLabel.Location = '20, 80'
+    $MagicLabel.Size = '120, 20'
+    $MagicLabel.Text = 'Magic:'
+    $MagicLabel.AutoSize = $true
+    $MagicLabel.ForeColor = $TextColor
+    $Form.Controls.Add($MagicLabel)
+
+    # Player Magic Value
+    $MagicValue = New-Object System.Windows.Forms.Label
+    $MagicValue.Location = '150, 80'
+    $MagicValue.Size = '120, 20'
+    $MagicValue.Text = $Player.Magic
+    $Form.Controls.Add($MagicValue)
+
+    # Player Attack Label
+    $AttackLabel = New-Object System.Windows.Forms.Label
+    $AttackLabel.Location = '20, 100'
+    $AttackLabel.Size = '120, 20'
+    $AttackLabel.Text = 'Attack:'
+    $AttackLabel.AutoSize = $true
+    $AttackLabel.ForeColor = $TextColor
+    $Form.Controls.Add($AttackLabel)
+
+    # Player Attack Value
+    $AttackValue = New-Object System.Windows.Forms.Label
+    $AttackValue.Location = '150, 100'
+    $AttackValue.Size = '120, 20'
+    $AttackValue.Text = $Player.Attack
+    $Form.Controls.Add($AttackValue)
+
+    # Player Armour Label
+    $ArmourLabel = New-Object System.Windows.Forms.Label
+    $ArmourLabel.Location = '20, 120'
+    $ArmourLabel.Size = '120, 20'
+    $ArmourLabel.Text = 'Armour:'
+    $ArmourLabel.AutoSize = $true
+    $ArmourLabel.ForeColor = $TextColor
+    $Form.Controls.Add($ArmourLabel)
+
+    # Player Armour Value
+    $ArmourValue = New-Object System.Windows.Forms.Label
+    $ArmourValue.Location = '150, 120'
+    $ArmourValue.Size = '120, 20'
+    $ArmourValue.Text = $Player.Armour
+    $Form.Controls.Add($ArmourValue)
+
+    # Player Gold Label
+    $GoldLabel = New-Object System.Windows.Forms.Label
+    $GoldLabel.Location = '20, 140'
+    $GoldLabel.Size = '120, 20'
+    $GoldLabel.Text = 'Gold:'
+    $GoldLabel.AutoSize = $true
+    $GoldLabel.ForeColor = $TextColor
+    $Form.Controls.Add($GoldLabel)
+
+    # Player Gold Value
+    $GoldValue = New-Object System.Windows.Forms.Label
+    $GoldValue.Location = '150, 140'
+    $GoldValue.Size = '120, 20'
+    $GoldValue.Text = $Player.Gold
+    $Form.Controls.Add($GoldValue)
+
+    # Player Experience Label
+    $XPLabel = New-Object System.Windows.Forms.Label
+    $XPLabel.Location = '20, 160'
+    $XPLabel.Size = '120, 20'
+    $XPLabel.Text = 'Experience:'
+    $XPLabel.AutoSize = $true
+    $XPLabel.ForeColor = $TextColor
+    $Form.Controls.Add($XPLabel)
+
+    # Player Experience Value
+    $XPValue = New-Object System.Windows.Forms.Label
+    $XPValue.Location = '150, 160'
+    $XPValue.Size = '120, 20'
+    $XPValue.Text = "$($Player.Experience)/$($FightStats.RequiredXP)"
+    $Form.Controls.Add($XPValue)
+
+    # Player Strength Label
+    $StrengthLabel = New-Object System.Windows.Forms.Label
+    $StrengthLabel.Location = '20, 180'
+    $StrengthLabel.Size = '120, 20'
+    $StrengthLabel.Text = 'Strength:'
+    $StrengthLabel.AutoSize = $true
+    $StrengthLabel.ForeColor = $TextColor
+    $Form.Controls.Add($StrengthLabel)
+
+    # Player Strength Value
+    $StrengthValue = New-Object System.Windows.Forms.Label
+    $StrengthValue.Location = '150, 180'
+    $StrengthValue.Size = '120, 20'
+    $StrengthValue.Text = $Player.ATRStrength
+    $Form.Controls.Add($StrengthValue)
+
+    # Player Magic Label
+    $MagicLabel = New-Object System.Windows.Forms.Label
+    $MagicLabel.Location = '20, 200'
+    $MagicLabel.Size = '120, 20'
+    $MagicLabel.Text = 'Magic:'
+    $MagicLabel.AutoSize = $true
+    $MagicLabel.ForeColor = $TextColor
+    $Form.Controls.Add($MagicLabel)
+
+    # Player Magic Value
+    $MagicValue = New-Object System.Windows.Forms.Label
+    $MagicValue.Location = '150, 200'
+    $MagicValue.Size = '120, 20'
+    $MagicValue.Text = $Player.ATRMagic
+    $Form.Controls.Add($MagicValue)
+
+    # Player Defence Label
+    $DefenceLabel = New-Object System.Windows.Forms.Label
+    $DefenceLabel.Location = '20, 220'
+    $DefenceLabel.Size = '120, 20'
+    $DefenceLabel.Text = 'Defence:'
+    $DefenceLabel.AutoSize = $true
+    $DefenceLabel.ForeColor = $TextColor
+    $Form.Controls.Add($DefenceLabel)
+
+    # Player Defence Value
+    $DefenceValue = New-Object System.Windows.Forms.Label
+    $DefenceValue.Location = '150, 220'
+    $DefenceValue.Size = '120, 20'
+    $DefenceValue.Text = $Player.ATRDefence
+    $Form.Controls.Add($DefenceValue)
+
+    # Show the form
+    $form.ShowDialog() | Out-Null
 }
 
 # Player setup
 $Player = @{
-    Name       = "Player"
-    Health     = 10
-    MaxHP      = 10
-    Magic      = 0
-    PrebuffATK = 1
-    Attack     = 1
-    Defence    = 0
-    Item1      = $null
-    Item2      = $null
-    Item3      = $null
-    PotionEQP  = $true
-    Potion     = "Attack"
-    Gold       = 0
-    Experience = 0
-    Level      = 1
-    Stats      = @( @{Name = "Strength"; Amount = 1 },
-        @{Name = "Magic"; Amount = 1 },
-        @{Name = "Defence"; Amount = 1 } 
-    )
+    Name        = "Player"
+    Class       = "Warrior"
+    Health      = 10
+    MaxHP       = 10
+    Magic       = 0
+    PrebuffATK  = 1
+    Attack      = 1
+    Armour      = 0
+    Item1       = $null
+    Item2       = $null
+    Item3       = $null
+    PotionEQP   = $true
+    Potion      = "Attack"
+    Gold        = 0
+    Experience  = 0
+    Level       = 1
+    Points      = 1
+    ATRStrength = 1
+    ATRMagic    = 1
+    ATRDefence  = 1
 }
 
 $Deck = @("Smash", "Stab", "Stab", "Stab", "Stab", "Heal")
@@ -1015,6 +1575,7 @@ $Shop = @("Potion of Healing", "Potion of Attack", "Spider Fang", "Ogre Eye", "G
 $Spider = @{
     Name        = "Spider"
     Health      = 10
+    MaxHP       = 10
     Attack      = 1
     ATKSkill    = "Venom"
     ATKSkillDMG = 3
@@ -1026,25 +1587,29 @@ $Spider = @{
 
 # Wolf details
 $Wolf = @{
-    Name       = "Wolf"
-    Health     = 10
-    Attack     = 1
-    MGKSkill   = "Howl"
-    MGKBuff    = $true
-    MGKBuffAMT = 1
-    BuffTime   = 3
-    Block      = 2
-    Dead       = $false
-    Tier       = "Low"
-    Details    = "The Wolf shouldn't be underestimated. Kill it quick before it starts building up it's stacks from Howl. The attack buff only wears off if the buff duration ends."
+    Name        = "Wolf"
+    Health      = 10
+    MaxHP       = 10
+    Attack      = 1
+    MGKSkill    = "Howl"
+    MGKBuff     = $true
+    MGKBuffType = "ATK"
+    MGKBuffAMT  = 1
+    BuffTime    = 3
+    Block       = 2
+    Dead        = $false
+    Tier        = "Low"
+    Details     = "The Wolf shouldn't be underestimated. Kill it quick before it starts building up it's stacks from Howl. The attack buff only wears off if the buff duration ends."
 }
 
 # Heloderma details
 $Heloderma = @{
     Name        = "Heloderma"
     Health      = 12
+    MaxHP       = 12
     Attack      = 1
     DebuffSkill = "Poison"
+    DebuffType  = "DOT"
     DebuffDMG   = 1
     DebuffDUR   = 3
     Block       = 2
@@ -1057,6 +1622,7 @@ $Heloderma = @{
 $Ogre = @{
     Name        = "Ogre"
     Health      = 15
+    MaxHP       = 15
     Attack      = 1
     ATKSkill    = "Slam"
     ATKSKILLDMG = 4
@@ -1067,12 +1633,12 @@ $Ogre = @{
 }
 
 # Enemy related variables
-# $LowTierEnemyNames = @("Spider", "Wolf", "Heloderma")
-# $LowTierEnemyList = @($Spider, $Wolf, $Heloderma)
+$LowTierEnemyNames = @("Spider", "Wolf", "Heloderma")
+$LowTierEnemyList = @($Spider, $Wolf, $Heloderma)
 
-# Testing enemy related variables
-$LowTierEnemyNames = @("Heloderma")
-$LowTierEnemyList = @($Heloderma)
+# Testing enemy related variables to target a specific enemy
+# $LowTierEnemyNames = @("Spider")
+# $LowTierEnemyList = @($Spider)
 
 # Fighting
 Do {
@@ -1097,6 +1663,7 @@ Do {
         Start-Sleep 1
             
     }
+
 }
 Until($Round -gt 3)
 

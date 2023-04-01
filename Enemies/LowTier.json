@@ -1,0 +1,45 @@
+{
+    "LowTier": {
+        "Spider": {
+            "Health": 10,
+            "MaxHP": 10,
+            "Block": 2,
+            "Attack": 1,
+            "Dead": false,
+            "ATKSkillDMG": 3,
+            "ATKSkill": "Venom",
+            "Name": "Spider",
+            "Tier": "Low",
+            "Details": "The Spider is a pretty standard foe, don't let it catch you off guard with low health as Venom can quickly dispose of your HP pool if it gets lucky rolls."
+        },
+        "Wolf": {
+            "MGKSkill": "Howl",
+            "MaxHP": 10,
+            "MGKBuffAMT": 1,
+            "Details": "The Wolf shouldn't be underestimated. Kill it quick before it starts building up it's stacks from Howl. The attack buff only wears off if the buff duration ends.",
+            "Name": "Wolf",
+            "Block": 2,
+            "Dead": false,
+            "Health": 10,
+            "Tier": "Low",
+            "MGKBuffType": "ATK",
+            "Attack": 1,
+            "MGKBuff": true,
+            "BuffTime": 3
+        },
+        "Heloderma":  {
+            "DebuffDMG":  1,
+            "Block":  2,
+            "Dead":  false,
+            "Health":  12,
+            "Tier":  "Low",
+            "DebuffSkill":  "Poison",
+            "Attack":  1,
+            "MaxHP":  12,
+            "DebuffType":  "DOT",
+            "Details":  "Watch out for their poison debuff, the amount can stack ontop of itself and cause severe damage. Hit hard or get faded.",
+            "Name":  "Heloderma",
+            "DebuffDUR":  3
+        }
+    }
+}
